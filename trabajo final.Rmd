@@ -1,0 +1,118 @@
+---
+title: "Machine leargning project"
+author: "TTa"
+date: "16 de febrero de 2017"
+output: html_document
+---
+
+
+
+## Synopsis
+
+This document sumarizes the model creation that allows to predict the manner in which the participants of the experiment performed the exercise, taking into account serveral measures obtained from data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.  
+
+This model shall be based on a Random forest predictor
+
+The input data obtained from the web site, for training, shall be splitted in two parts: one for training and other for testing our model.  Finally, the model shall predict the way that participants performed the excercise for 20 experiment, given in the "testdata.csv" file.
+
+```{r commondata,include=FALSE}
+setwd("f:/Data Science/Curso/Machinne learning/trabajo final")
+knitr::opts_chunk$set(cache=TRUE)
+set.seed(21073)
+``` 
+## Data preprocess
+
+The data given as *training data* shall be divided, randomly, in 2 groups:  
+1) Trainning set (traindata): it contains the 70% of data  
+2) Testing set (testdata): it contains the 30% of data  
+
+```{r datasets, echo = TRUE, warning=FALSE}
+library(caret)
+library(randomForest)
+finaltestdata <- read.csv("testdata.csv")
+inputdata <- read.csv("trainingdata.csv")
+
+fortraindataindex <- createDataPartition(y=inputdata$classe, p=0.70, list=FALSE)
+traindata <- inputdata[fortraindataindex,]
+testdata <- inputdata[-fortraindataindex,]
+rm(inputdata)
+```
+
+then, in order to avoid NA or null numbers in the data for model creation, a K Nearest Neighbour imputation (KNN) in the training data. Also those variables with zero or nearly zero variance shall be removed.
+
+```{r preprocess, echo = TRUE, warning=FALSE}
+preprocesobj <- preProcess(traindata, method="knnImpute")
+traindata <- predict(preprocesobj,traindata)
+
+zerovar <- nearZeroVar(traindata,saveMetrics = FALSE)
+traindata <- traindata[,-zerovar]
+```
+
+Regarding the finaltestdata: in order to set equals objects for model imputation, it shall be set the levels of the cvtd_timestamp predictor, from finaltestdata data, equals to the one from traindata object.
+
+```{r dataequals, echo = TRUE, warning=FALSE}
+levels(finaltestdata[,5]) <- levels(traindata[,5])
+```
+
+## Model creation
+Once the data for model training was prepreprocessed, the Random Forest based model shall be created.  
+
+```{r modelfit, echo = TRUE, warning=FALSE}
+modelfit <- randomForest(classe~.,data=traindata, ntree=400)
+```
+
+The number of trees considered is defined as 400 (instead of 500 - default)
+
+## Conclusions and Accuracy
+Once our model is defined, the same preprocess information defined for the training data set shall be considered for the test set, and then the predictions shall be performed
+
+
+```{r preproandtestprediction, echo = TRUE, warning=FALSE}
+
+testdata <- predict(preprocesobj,testdata)
+testdata <- testdata[,-zerovar]
+predictedoutput <- predict(modelfit,newdata=testdata)
+cm <- confusionMatrix(predictedoutput,testdata$classe)
+
+print(cm$table)
+print(cm$overall[1])
+```
+
+and it has an accuracy of `r cm$overall[1]*100`%
+
+## Final prediction
+Same preprocess data shall be considered for the final data set, and the prediction shall be run over it using the following code:  
+
+```{r finalprediction, echo = TRUE, warning=FALSE}
+finaltestdata <- predict(preprocesobj,finaltestdata)
+finaltestdata <- finaltestdata[,-zerovar]
+output <- predict(modelfit,newdata=finaltestdata)
+```
+  
+So, the final prediction is the following:  
+`r output`
+
+
+## Aditional information
+
+
+###Seed definition: 
+
+seed value = 21073
+
+
+###Links for more information about the experiment:
+
+Experiment information:
+
+  http://groupware.les.inf.puc-rio.br/har
+
+The training data for this project are available here:
+
+  https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+  https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
