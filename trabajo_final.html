@@ -134,10 +134,17 @@ $(document).ready(function () {
 <p>The data given as <em>training data</em> shall be divided, randomly, in 2 groups:<br />
 1) Trainning set (traindata): it contains the 70% of data<br />
 2) Testing set (testdata): it contains the 30% of data</p>
+<p>But first, columns where all NA or “” values, and not used, shall be removed</p>
 <pre class="r"><code>library(caret)
 library(randomForest)
 finaltestdata &lt;- read.csv(&quot;testdata.csv&quot;)
 inputdata &lt;- read.csv(&quot;trainingdata.csv&quot;)
+
+notNAvaluesincolumn &lt;- colSums(is.na(inputdata))==0
+notusedcolumns &lt;- c(&quot;X&quot;,&quot;user_name&quot;,&quot;raw_timestamp_part_1&quot;,&quot;raw_timestamp_part_2&quot;,&quot;cvtd_timestamp&quot;,&quot;new_window&quot;)
+
+inputdata &lt;- inputdata[,notNAvaluesincolumn]
+inputdata&lt;- inputdata[,!(names(inputdata) %in% notusedcolumns)]
 
 fortraindataindex &lt;- createDataPartition(y=inputdata$classe, p=0.70, list=FALSE)
 traindata &lt;- inputdata[fortraindataindex,]
@@ -146,16 +153,19 @@ rm(inputdata)</code></pre>
 <p>then, in order to avoid NA or null numbers in the data for model creation, a K Nearest Neighbour imputation (KNN) in the training data. Also those variables with zero or nearly zero variance shall be removed.</p>
 <pre class="r"><code>preprocesobj &lt;- preProcess(traindata, method=&quot;knnImpute&quot;)
 traindata &lt;- predict(preprocesobj,traindata)
-
 zerovar &lt;- nearZeroVar(traindata,saveMetrics = FALSE)
 traindata &lt;- traindata[,-zerovar]</code></pre>
-<p>Regarding the finaltestdata: in order to set equals objects for model imputation, it shall be set the levels of the cvtd_timestamp predictor, from finaltestdata data, equals to the one from traindata object.</p>
-<pre class="r"><code>levels(finaltestdata[,5]) &lt;- levels(traindata[,5])</code></pre>
+<p>Regarding the finaltestdata: in order to set equals objects, It shall be applied the same preprocess and it shall be set the levels of the cvtd_timestamp predictor, from finaltestdata data, equals to the one from traindata object.</p>
+<pre class="r"><code>finaltestdata &lt;- finaltestdata[,notNAvaluesincolumn]
+finaltestdata&lt;- finaltestdata[,!(names(finaltestdata) %in% notusedcolumns)]
+finaltestdata &lt;- predict(preprocesobj,finaltestdata)
+finaltestdata &lt;- finaltestdata[,-zerovar]
+levels(finaltestdata[,5]) &lt;- levels(traindata[,5])</code></pre>
 </div>
 <div id="model-creation" class="section level2">
 <h2>Model creation</h2>
 <p>Once the data for model training was prepreprocessed, the Random Forest based model shall be created.</p>
-<pre class="r"><code>modelfit &lt;- randomForest(classe~.,data=traindata, ntree=400)</code></pre>
+<pre class="r"><code>modelfit &lt;- randomForest(classe~.,data=traindata, ntree=500, importance=TRUE)</code></pre>
 <p>The number of trees considered is defined as 400 (instead of 500 - default)</p>
 </div>
 <div id="conclusions-and-accuracy" class="section level2">
@@ -169,24 +179,22 @@ cm &lt;- confusionMatrix(predictedoutput,testdata$classe)
 print(cm$table)</code></pre>
 <pre><code>##           Reference
 ## Prediction    A    B    C    D    E
-##          A 1674    0    0    0    0
-##          B    0 1139    0    0    0
-##          C    0    0 1026    1    0
-##          D    0    0    0  963    1
-##          E    0    0    0    0 1081</code></pre>
+##          A 1674    2    0    0    0
+##          B    0 1132    2    0    0
+##          C    0    5 1023    5    0
+##          D    0    0    1  958    1
+##          E    0    0    0    1 1081</code></pre>
 <pre class="r"><code>print(cm$overall[1])</code></pre>
 <pre><code>##  Accuracy 
-## 0.9996602</code></pre>
-<p>and it has an accuracy of 99.9660153%</p>
+## 0.9971113</code></pre>
+<p>and it has an accuracy of 99.71113%</p>
 </div>
 <div id="final-prediction" class="section level2">
 <h2>Final prediction</h2>
 <p>Same preprocess data shall be considered for the final data set, and the prediction shall be run over it using the following code:</p>
-<pre class="r"><code>finaltestdata &lt;- predict(preprocesobj,finaltestdata)
-finaltestdata &lt;- finaltestdata[,-zerovar]
-output &lt;- predict(modelfit,newdata=finaltestdata)</code></pre>
+<pre class="r"><code>output &lt;- predict(modelfit,newdata=finaltestdata)</code></pre>
 <p>So, the final prediction is the following:<br />
-A, A, A, A, A, E, A, A, A, A, A, A, A, A, A, A, A, A, A, B</p>
+B, A, B, A, A, E, D, B, A, A, B, C, B, A, E, E, A, B, B, B</p>
 </div>
 <div id="aditional-information" class="section level2">
 <h2>Aditional information</h2>

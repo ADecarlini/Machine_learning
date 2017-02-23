@@ -25,12 +25,19 @@ set.seed(21073)
 The data given as *training data* shall be divided, randomly, in 2 groups:  
 1) Trainning set (traindata): it contains the 70% of data  
 2) Testing set (testdata): it contains the 30% of data  
-
+  
+But first, columns where all NA or "" values, and not used,  shall be removed  
 ```{r datasets, echo = TRUE, warning=FALSE}
 library(caret)
 library(randomForest)
 finaltestdata <- read.csv("testdata.csv")
 inputdata <- read.csv("trainingdata.csv")
+
+notNAvaluesincolumn <- colSums(is.na(inputdata))==0
+notusedcolumns <- c("X","user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window")
+
+inputdata <- inputdata[,notNAvaluesincolumn]
+inputdata<- inputdata[,!(names(inputdata) %in% notusedcolumns)]
 
 fortraindataindex <- createDataPartition(y=inputdata$classe, p=0.70, list=FALSE)
 traindata <- inputdata[fortraindataindex,]
@@ -43,14 +50,17 @@ then, in order to avoid NA or null numbers in the data for model creation, a K N
 ```{r preprocess, echo = TRUE, warning=FALSE}
 preprocesobj <- preProcess(traindata, method="knnImpute")
 traindata <- predict(preprocesobj,traindata)
-
 zerovar <- nearZeroVar(traindata,saveMetrics = FALSE)
 traindata <- traindata[,-zerovar]
 ```
 
-Regarding the finaltestdata: in order to set equals objects for model imputation, it shall be set the levels of the cvtd_timestamp predictor, from finaltestdata data, equals to the one from traindata object.
+Regarding the finaltestdata: in order to set equals objects, It shall be applied the same preprocess and it shall be set the levels of the cvtd_timestamp predictor, from finaltestdata data, equals to the one from traindata object.
 
 ```{r dataequals, echo = TRUE, warning=FALSE}
+finaltestdata <- finaltestdata[,notNAvaluesincolumn]
+finaltestdata<- finaltestdata[,!(names(finaltestdata) %in% notusedcolumns)]
+finaltestdata <- predict(preprocesobj,finaltestdata)
+finaltestdata <- finaltestdata[,-zerovar]
 levels(finaltestdata[,5]) <- levels(traindata[,5])
 ```
 
@@ -58,7 +68,7 @@ levels(finaltestdata[,5]) <- levels(traindata[,5])
 Once the data for model training was prepreprocessed, the Random Forest based model shall be created.  
 
 ```{r modelfit, echo = TRUE, warning=FALSE}
-modelfit <- randomForest(classe~.,data=traindata, ntree=400)
+modelfit <- randomForest(classe~.,data=traindata, ntree=500, importance=TRUE)
 ```
 
 The number of trees considered is defined as 400 (instead of 500 - default)
@@ -84,8 +94,6 @@ and it has an accuracy of `r cm$overall[1]*100`%
 Same preprocess data shall be considered for the final data set, and the prediction shall be run over it using the following code:  
 
 ```{r finalprediction, echo = TRUE, warning=FALSE}
-finaltestdata <- predict(preprocesobj,finaltestdata)
-finaltestdata <- finaltestdata[,-zerovar]
 output <- predict(modelfit,newdata=finaltestdata)
 ```
   

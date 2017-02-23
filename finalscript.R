@@ -4,6 +4,13 @@ finaltestdata <- read.csv("testdata.csv")
 inputdata <- read.csv("trainingdata.csv")
 set.seed(21073)
 
+
+notNAvaluesincolumn <- colSums(is.na(inputdata))==0
+notusedcolumns <- c("X","user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window")
+
+inputdata <- inputdata[,notNAvaluesincolumn]
+inputdata<- inputdata[,!(names(inputdata) %in% notusedcolumns)]
+
 fortraindataindex <- createDataPartition(y=inputdata$classe, p=0.70, list=FALSE)
 traindata <- inputdata[fortraindataindex,]
 testdata <- inputdata[-fortraindataindex,]
@@ -36,7 +43,7 @@ traindata <- traindata[,-zerovar]
 
 ## ajusto modelo
 
-modelfit <- randomForest(classe~.,data=traindata, ntree=300)
+modelfit <- randomForest(classe~.,data=traindata, ntree=500, importance=TRUE)
 
 ## aplico mismo preproceso al test data
 
@@ -57,7 +64,8 @@ print(cm$overall[1])
 
 # con datos finales:
 ##preproceso
-
+finaltestdata <- finaltestdata[,notNAvaluesincolumn]
+finaltestdata<- finaltestdata[,!(names(finaltestdata) %in% notusedcolumns)]
 finaltestdata <- predict(preprocesobj,finaltestdata)
 finaltestdata <- finaltestdata[,-zerovar]
 
@@ -67,5 +75,6 @@ levels(finaltestdata[,5]) <- levels(traindata[,5])
 output <- predict(modelfit,newdata=finaltestdata)
 
 
+finaltestdata <- read.csv("testdata.csv")
 
 
